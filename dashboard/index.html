@@ -1,26 +1,1314 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CREON</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0d12; color: #e2e8f0; font-family: 'IBM Plex Mono', monospace; }
-    #app { display: grid; grid-template-columns: 260px 1fr 320px; height: 100vh; }
-    #left-panel { border-right: 1px solid #1e293b; padding: 16px; overflow-y: auto; }
-    #center-panel { overflow: hidden; }
-    #right-panel { border-left: 1px solid #1e293b; padding: 16px; overflow-y: auto; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CREON — AI Labor Intelligence</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <meta name="description" content="Live intelligence on how AI is reshaping the labor market. Connect your agent and explore. Built by @Callixen.">
+  <meta property="og:title" content="CREON — AI Labor Intelligence">
+  <meta property="og:description" content="Live intelligence on how AI is reshaping the labor market. Connect your agent and explore. Built by @Callixen.">
+  <meta property="og:url" content="https://creon.live">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CREON — AI Labor Intelligence">
+  <meta name="twitter:description" content="Live intelligence on how AI is reshaping the labor market. Connect your agent and explore. Built by @Callixen.">
+  <meta name="twitter:site" content="@Callixen">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0d12;
+  --bg2: #111520;
+  --bg3: #161b26;
+  --bg4: #1c2230;
+  --border: #1e2a3a;
+  --border2: #253042;
+  --text: #c8d4e4;
+  --text2: #7a90a8;
+  --text3: #4a5a70;
+  --white: #e8f0f8;
+  --green: #22c55e;
+  --green2: #16a34a;
+  --green3: #134c2a;
+  --amber: #f59e0b;
+  --amber2: #d97706;
+  --red: #ef4444;
+  --red2: #dc2626;
+  --red3: #4c1a1a;
+  --blue: #3b82f6;
+  --blue2: #1d4ed8;
+  --cyan: #06b6d4;
+  --font: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Scanline */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none;
+}
+
+/* ---- ANIMATIONS ---- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes glowPulse {
+  0%,100% { text-shadow: 0 0 6px currentColor; }
+  50%      { text-shadow: 0 0 18px currentColor, 0 0 32px currentColor; }
+}
+@keyframes borderFlash {
+  0%,100% { border-color: var(--border); }
+  50%      { border-color: var(--cyan); box-shadow: 0 0 12px rgba(6,182,212,0.2); }
+}
+@keyframes scanReveal {
+  from { clip-path: inset(0 0 100% 0); opacity: 0; }
+  to   { clip-path: inset(0 0 0% 0);   opacity: 1; }
+}
+@keyframes ripple {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* NAVBAR */
+#navbar {
+  height: 44px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px; gap: 20px;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.15em;
+  color: var(--white); text-transform: uppercase;
+}
+.nav-logo .dot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); }
+.nav-sep { width: 1px; height: 20px; background: var(--border2); }
+.nav-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 2px;
+}
+.nav-badge.bls { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+.nav-badge.occ { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+.nav-badge.src { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.nav-icon-link { display:flex; align-items:center; color: var(--text3); text-decoration:none; transition: color 0.15s; position: relative; z-index: 101; }
+.nav-icon-link:hover { color: var(--white); }
+#live-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); font-weight: 600; letter-spacing: 0.1em; }
+#live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } }
+/* Live dot ripple ring */
+#live-indicator { position: relative; }
+#live-dot::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  border: 1px solid var(--green); opacity: 0;
+  animation: ripple 2s infinite;
+  pointer-events: none;
+}
+#utc-clock { font-size: 11px; color: var(--text2); letter-spacing: 0.08em; }
+
+/* LAYOUT */
+#app {
+  display: flex; height: calc(100vh - 72px); margin-top: 72px;
+}
+
+/* LEFT PANEL */
+#left-panel {
+  width: 260px; min-width: 260px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* CENTER PANEL */
+#center-panel {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* RIGHT PANEL */
+#right-panel {
+  width: 280px; min-width: 280px;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  overflow-y: auto; overflow-x: hidden;
+}
+
+/* PANEL SECTIONS */
+.panel-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.section-header {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--text3);
+  margin-bottom: 10px;
+}
+
+/* STAT BOXES */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stat-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: 8px 10px; position: relative; overflow: hidden;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+  cursor: default;
+  animation: fadeInUp 0.4s ease both;
+}
+.stat-box:nth-child(1) { animation-delay: 0.05s; }
+.stat-box:nth-child(2) { animation-delay: 0.1s; }
+.stat-box:nth-child(3) { animation-delay: 0.15s; }
+.stat-box:nth-child(4) { animation-delay: 0.2s; }
+.stat-box:hover { transform: translateY(-1px); }
+.stat-box.blue:hover  { border-color: var(--blue);  box-shadow: 0 0 16px rgba(59,130,246,0.2), inset 0 0 20px rgba(59,130,246,0.04); }
+.stat-box.red:hover   { border-color: var(--red);   box-shadow: 0 0 16px rgba(239,68,68,0.2),  inset 0 0 20px rgba(239,68,68,0.04); }
+.stat-box.amber:hover { border-color: var(--amber); box-shadow: 0 0 16px rgba(245,158,11,0.2), inset 0 0 20px rgba(245,158,11,0.04); }
+.stat-box.green:hover { border-color: var(--green); box-shadow: 0 0 16px rgba(34,197,94,0.2),  inset 0 0 20px rgba(34,197,94,0.04); }
+/* shimmer sweep on hover */
+.stat-box::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.03) 50%, transparent 60%);
+  background-size: 200% 100%;
+  opacity: 0; transition: opacity 0.2s;
+}
+.stat-box:hover::after { opacity: 1; animation: shimmer 0.6s ease forwards; }
+.stat-box::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+}
+.stat-box.blue::before { background: var(--blue); }
+.stat-box.red::before { background: var(--red); }
+.stat-box.amber::before { background: var(--amber); }
+.stat-box.green::before { background: var(--green); }
+.stat-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.stat-value {
+  font-size: 15px; font-weight: 700; color: var(--white); line-height: 1;
+  animation: countUp 0.5s ease both;
+}
+.stat-sub { font-size: 9px; color: var(--text2); margin-top: 3px; }
+
+/* VIEW TABS */
+#view-tabs {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 0 16px;
+}
+.view-tab {
+  padding: 9px 16px; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
+  color: var(--text2); border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  background: none; border-top: none; border-left: none; border-right: none;
+  position: relative;
+}
+.view-tab::after {
+  content: ''; position: absolute; bottom: -2px; left: 50%; right: 50%;
+  height: 2px; background: var(--cyan);
+  transition: left 0.25s ease, right 0.25s ease;
+}
+.view-tab:hover { color: var(--white); }
+.view-tab:hover::after { left: 0; right: 0; }
+.view-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.view-tab.active::after { left: 0; right: 0; }
+
+/* VIEW AREAS */
+#viz-area {
+  flex: 1; position: relative; overflow: hidden;
+  background: var(--bg);
+}
+.viz-view { display: none; width: 100%; height: 100%; }
+.viz-view.active {
+  display: block;
+  animation: scanReveal 0.35s ease both;
+}
+
+/* TREEMAP */
+#treemap-svg { width: 100%; height: 100%; }
+#treemap-svg text { pointer-events: none; font-family: var(--font); }
+
+/* MAP */
+#map-svg { width: 100%; height: 100%; }
+
+/* SCATTER */
+#scatter-svg { width: 100%; height: 100%; }
+
+/* TOOLTIP */
+#tooltip {
+  position: fixed; z-index: 1000; pointer-events: none;
+  background: rgba(10,13,18,0.96); border: 1px solid var(--border2);
+  padding: 14px 16px; max-width: 320px; min-width: 240px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: none;
+  animation: fadeInUp 0.12s ease;
+}
+#tooltip .tt-title { font-size: 13px; font-weight: 700; color: var(--white); margin-bottom: 8px; line-height: 1.3; }
+#tooltip .tt-score {
+  font-size: 12px; font-weight: 600; margin-bottom: 10px; padding: 3px 8px; display: inline-block;
+}
+#tooltip .tt-score.low { color: var(--green); background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); }
+#tooltip .tt-score.med { color: var(--amber); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+#tooltip .tt-score.high { color: var(--red); background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
+#tooltip .tt-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+#tooltip .tt-row .lbl { color: var(--text2); }
+#tooltip .tt-row .val { color: var(--white); font-weight: 500; }
+#tooltip .tt-divider { border-top: 1px solid var(--border); margin: 8px 0; }
+#tooltip .tt-rationale { font-size: 10px; color: var(--text2); line-height: 1.5; }
+.tt-bls-link {
+  display: block; margin-top: 8px; padding: 5px 8px; text-align: center;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--cyan); border: 1px solid rgba(6,182,212,0.35);
+  background: rgba(6,182,212,0.07); text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tt-bls-link:hover { background: rgba(6,182,212,0.16); border-color: rgba(6,182,212,0.6); }
+
+/* FILTER BAR */
+#filter-bar {
+  height: 38px; display: flex; align-items: center; gap: 8px;
+  padding: 0 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+#filter-bar .fb-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; }
+.filter-pill {
+  font-size: 10px; font-weight: 600; padding: 3px 10px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  background: transparent; color: var(--text2);
+  border: 1px solid var(--border2);
+  transition: all 0.2s ease;
+  position: relative; overflow: hidden;
+}
+.filter-pill::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(6,182,212,0.08); transform: scaleX(0);
+  transform-origin: left; transition: transform 0.2s ease;
+}
+.filter-pill:hover { border-color: var(--cyan); color: var(--cyan); }
+.filter-pill:hover::after { transform: scaleX(1); }
+.filter-pill.active { background: rgba(6,182,212,0.15); color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 10px rgba(6,182,212,0.15); }
+.filter-sep { width: 1px; height: 18px; background: var(--border2); margin: 0 4px; }
+#sector-select {
+  font-family: var(--font); font-size: 10px; color: var(--text); letter-spacing: 0.06em;
+  background: var(--bg3); border: 1px solid var(--border2); padding: 3px 8px;
+  cursor: pointer; outline: none;
+}
+#sector-select option { background: var(--bg3); }
+
+/* EXPOSURE DISTRIBUTION BARS */
+#dist-bars { }
+.dist-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.dist-label { font-size: 9px; color: var(--text2); width: 14px; text-align: right; flex-shrink: 0; }
+.dist-bar-wrap { flex: 1; height: 12px; background: var(--bg3); position: relative; }
+.dist-bar { height: 100%; transition: width 0.3s; }
+.dist-count { font-size: 9px; color: var(--text3); width: 50px; text-align: right; }
+
+/* SECTOR HEATMAP */
+#sector-heatmap {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+}
+.sector-cell {
+  padding: 5px 4px; text-align: center; cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  position: relative;
+}
+.sector-cell:hover {
+  transform: scale(1.06);
+  filter: brightness(1.3);
+  box-shadow: 0 0 12px rgba(255,255,255,0.12);
+  z-index: 2;
+}
+.sector-cell .sc-name { font-size: 8px; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.2; }
+.sector-cell .sc-score { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.95); margin-top: 1px; }
+
+/* RIGHT PANEL SPECIFICS */
+.risk-table { width: 100%; border-collapse: collapse; }
+.risk-table th {
+  font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text3); padding: 6px 6px; text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.risk-table td { font-size: 10px; padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.risk-table tr { cursor: pointer; transition: background 0.1s; }
+.risk-table tr:hover td { background: rgba(255,255,255,0.03); }
+.exp-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 2px; display: inline-block;
+}
+
+/* LIVE NEWS FEED */
+.nf-pill {
+  font-size: 9px; font-weight: 600; padding: 2px 8px; cursor: pointer;
+  letter-spacing: 0.06em; background: transparent; color: var(--text3);
+  border: 1px solid var(--border); transition: all 0.15s;
+  font-family: var(--font);
+}
+.nf-pill:hover { color: var(--text); border-color: var(--border2); }
+.nf-pill.active { background: rgba(6,182,212,0.12); color: var(--cyan); border-color: rgba(6,182,212,0.4); }
+
+.live-news-item {
+  padding: 7px 8px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s, border-left-color 0.15s;
+  border-left: 2px solid transparent;
+  animation: slideInRight 0.25s ease both;
+}
+.live-news-item:hover { background: rgba(255,255,255,0.025); border-left-color: var(--cyan); }
+.live-news-item .lni-header { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; flex-wrap: wrap; }
+.live-news-item .lni-source {
+  font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 1px 5px; border-radius: 1px;
+}
+.lni-src-us { background: rgba(59,130,246,0.25); color: #60a5fa; }
+.lni-src-gb { background: rgba(239,68,68,0.2); color: #f87171; }
+.lni-src-ca { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.lni-src-cn { background: rgba(239,68,68,0.3); color: #fca5a5; }
+.lni-src-tw { background: rgba(34,197,94,0.2); color: #86efac; }
+.lni-src-default { background: rgba(245,158,11,0.2); color: #fcd34d; }
+
+.live-news-item .lni-flag { font-size: 11px; }
+.live-news-item .lni-cat {
+  font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text3); padding: 1px 4px; border: 1px solid var(--border);
+}
+.live-news-item .lni-time { font-size: 8px; color: var(--text3); margin-left: auto; flex-shrink: 0; }
+.live-news-item .lni-title { font-size: 10px; color: var(--text); line-height: 1.35; margin-bottom: 3px; }
+.live-news-item .lni-summary { font-size: 9px; color: var(--text2); line-height: 1.35; display: none; }
+.live-news-item:hover .lni-summary { display: block; }
+.lni-sentiment { font-size: 8px; font-weight: 600; margin-left: auto; }
+.lni-sentiment.pos { color: var(--green); }
+.lni-sentiment.neg { color: var(--red); }
+.lni-sentiment.neu { color: var(--text3); }
+
+.news-skeleton { animation: shimmer 1.2s infinite; background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%); background-size: 200% 100%; height: 52px; margin-bottom: 1px; }
+
+/* NEWS FEED (Research Signals) */
+.news-item {
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s, border-left-color 0.2s, padding-left 0.2s;
+  border-left: 2px solid transparent;
+  animation: slideInRight 0.3s ease both;
+}
+.news-item:hover {
+  background: rgba(239,68,68,0.05);
+  border-left-color: var(--red);
+  padding-left: 14px;
+}
+.news-item .ni-source {
+  font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--red); margin-bottom: 3px;
+}
+.news-item .ni-title { font-size: 10px; color: var(--text); line-height: 1.4; }
+
+/* MAP LEGEND */
+#map-legend {
+  position: absolute; bottom: 16px; left: 16px;
+  background: rgba(10,13,18,0.9); border: 1px solid var(--border2);
+  padding: 10px 14px;
+  animation: fadeInUp 0.5s ease 0.3s both;
+}
+#map-legend .leg-title { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+#map-legend .leg-bar {
+  width: 160px; height: 8px;
+  background: linear-gradient(to right, #16a34a, #f59e0b, #dc2626);
+  margin-bottom: 4px;
+}
+.leg-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text2); }
+
+/* SAFE JOBS */
+.safe-item {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s, padding-left 0.2s;
+  border-left: 2px solid transparent;
+  padding-left: 2px;
+}
+.safe-item:hover {
+  background: rgba(34,197,94,0.05);
+  border-left-color: var(--green);
+  padding-left: 8px;
+}
+.safe-item .si-score { font-size: 10px; font-weight: 700; color: var(--green); width: 24px; }
+.safe-item .si-name { font-size: 10px; color: var(--text); flex: 1; }
+.safe-item .si-emp { font-size: 9px; color: var(--text3); }
+
+/* SCATTER LABELS */
+.quad-label { fill: var(--text3); font-size: 10px; font-family: var(--font); letter-spacing: 0.06em; }
+
+/* Fear Index */
+.survey-row {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin-bottom: 5px; padding: 5px 6px;
+  background: var(--bg3); border-left: 2px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: default;
+}
+.survey-row:hover { background: var(--bg4); border-left-color: var(--red); }
+.survey-pct { font-size: 15px; font-weight: 700; flex-shrink: 0; width: 38px; text-align: right; padding-top: 1px; }
+.survey-detail { flex: 1; }
+.survey-source { font-size: 8px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1px; }
+.survey-text { font-size: 9px; color: var(--text); line-height: 1.35; }
+.survey-bar-wrap { height: 2px; background: var(--border); margin-top: 4px; }
+.survey-bar-fill { height: 100%; transition: width 1.4s cubic-bezier(.34,1.2,.64,1); width: 0; }
+
+.fear-fact {
+  display: flex; gap: 7px; align-items: flex-start;
+  margin-bottom: 5px; padding: 4px 6px;
+  font-size: 9px; color: var(--text2); line-height: 1.4;
+  border-left: 1px solid var(--border2);
+}
+.fear-fact-icon { font-size: 11px; flex-shrink: 0; }
+
+@keyframes gaugeArc {
+  from { stroke-dashoffset: 314; }
+}
+@keyframes fearPulse {
+  0%,100% { filter: drop-shadow(0 0 2px #ef4444); }
+  50%      { filter: drop-shadow(0 0 10px #ef4444); }
+}
+
+/* Breakdown mini stats */
+.bdwn-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.bdwn-swatch { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
+.bdwn-label { font-size: 10px; color: var(--text2); flex: 1; }
+.bdwn-bar-wrap { width: 60px; height: 6px; background: var(--bg3); }
+.bdwn-bar { height: 100%; }
+.bdwn-val { font-size: 10px; color: var(--text); width: 50px; text-align: right; }
+
+/* Pay exposure bars */
+.pay-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.pay-label { font-size: 9px; color: var(--text2); width: 55px; }
+.pay-bar-bg { flex: 1; height: 8px; background: var(--bg3); position: relative; }
+.pay-bar-fill { height: 100%; }
+.pay-score { font-size: 9px; color: var(--text); width: 22px; text-align: right; }
+
+/* Large stat for wages exposed */
+.wages-exposed {
+  text-align: center; padding: 10px 0;
+}
+.wages-exposed .we-num { font-size: 28px; font-weight: 700; color: var(--white); line-height: 1; }
+.wages-exposed .we-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+
+/* ---- MARKETS TICKER BAR ---- */
+#markets-bar {
+  height: 28px; background: #080c12; border-bottom: 1px solid rgba(6,182,212,0.15);
+  display: flex; align-items: center; overflow: hidden; flex-shrink: 0;
+  position: fixed; top: 44px; left: 0; right: 0; z-index: 95;
+}
+#markets-panel {
+  position: fixed; top: 72px; left: 0; right: 0; z-index: 94;
+}
+#markets-bar-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.15em; color: var(--cyan);
+  padding: 0 12px; flex-shrink: 0; border-right: 1px solid rgba(6,182,212,0.2);
+  height: 100%; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  background: linear-gradient(90deg, rgba(6,182,212,0.08), transparent);
+}
+#mkt-label-icon { font-size: 7px; animation: pulse-dot 2s infinite; }
+
+#ticker-track-wrapper {
+  flex: 1; overflow: hidden; height: 100%; position: relative; cursor: default;
+}
+#ticker-track {
+  display: flex; align-items: center; height: 100%; gap: 0;
+  animation: ticker-scroll 60s linear infinite;
+  white-space: nowrap; will-change: transform;
+}
+#ticker-track:hover { animation-play-state: paused; }
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 0 16px; height: 28px; cursor: pointer; flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.15s;
+}
+.ticker-item:hover { background: rgba(255,255,255,0.04); }
+.ticker-sym {
+  font-size: 9px; font-weight: 700; color: var(--white); letter-spacing: 0.08em;
+}
+.ticker-price { font-size: 10px; font-weight: 600; color: var(--white); letter-spacing: 0.03em; }
+.ticker-change {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 1px 5px;
+}
+.ticker-change.up { color: #22c55e; background: rgba(34,197,94,0.12); }
+.ticker-change.down { color: var(--red); background: rgba(239,68,68,0.12); }
+.ticker-change.flat { color: var(--text3); }
+.ticker-sep { color: rgba(255,255,255,0.1); font-size: 9px; padding: 0 4px; }
+
+#markets-bar-controls {
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  flex-shrink: 0; border-left: 1px solid rgba(6,182,212,0.2);
+}
+#mkt-expand-btn {
+  font-family: var(--font); font-size: 8px; font-weight: 700; letter-spacing: 0.1em;
+  background: transparent; color: var(--text3); border: 1px solid var(--border);
+  padding: 2px 8px; cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+  white-space: nowrap;
+}
+#mkt-expand-btn:hover { color: var(--cyan); border-color: rgba(6,182,212,0.4); }
+
+/* Expanded panel */
+#markets-panel {
+  background: #080c12; border-bottom: 1px solid rgba(6,182,212,0.2);
+  overflow: hidden; transition: max-height 0.35s cubic-bezier(.4,0,.2,1), opacity 0.25s;
+  max-height: 240px; opacity: 1; /* position/top set above */
+}
+#markets-panel.markets-panel-hidden { max-height: 0; opacity: 0; pointer-events: none; }
+#markets-panel-inner {
+  display: flex; gap: 0; padding: 10px 16px 4px; flex-wrap: wrap; gap: 16px;
+}
+.mkt-section { flex: 1; min-width: 280px; }
+.mkt-section-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.18em; color: var(--text3);
+  text-transform: uppercase; margin-bottom: 6px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+#mkt-stocks-grid, #mkt-crypto-grid {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.mkt-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 6px 10px; cursor: pointer; min-width: 110px; flex: 1;
+  transition: all 0.15s; position: relative; overflow: hidden;
+}
+.mkt-card:hover { border-color: rgba(6,182,212,0.4); background: rgba(6,182,212,0.04); }
+.mkt-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  transition: opacity 0.2s;
+}
+.mkt-card.up::before { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.mkt-card.down::before { background: linear-gradient(90deg, #b91c1c, #ef4444); }
+.mkt-card-sym { font-size: 9px; font-weight: 700; color: var(--white); letter-spacing: 0.08em; }
+.mkt-card-name { font-size: 7.5px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mkt-card-price { font-size: 12px; font-weight: 700; color: var(--white); margin-top: 3px; letter-spacing: 0.02em; }
+.mkt-card-chg { font-size: 9px; font-weight: 600; margin-top: 1px; }
+.mkt-card-chg.up { color: #22c55e; }
+.mkt-card-chg.down { color: #ef4444; }
+.mkt-card-chg.flat { color: var(--text3); }
+
+/* Detail card */
+#mkt-detail-card {
+  min-width: 200px; max-width: 280px; background: rgba(6,182,212,0.05);
+  border: 1px solid rgba(6,182,212,0.25); padding: 10px;
+  animation: fadeInUp 0.2s ease;
+}
+.mkt-detail-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  font-size: 10px; font-weight: 700; color: var(--white); letter-spacing: 0.1em;
+}
+.mkt-detail-row { display: flex; justify-content: space-between; font-size: 9px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+.mkt-detail-row .k { color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+.mkt-detail-row .v { color: var(--white); font-weight: 600; }
+
+/* ---- CREON CHAT WINDOW ---- */
+#chat-toggle-btn {
+  position: fixed; bottom: 20px; right: 20px; z-index: 5000;
+  font-family: var(--font); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  background: #0e1520; color: var(--text3);
+  border: 1px solid var(--border2);
+  padding: 6px 12px; cursor: pointer;
+  transition: all 0.2s;
+}
+#chat-toggle-btn:hover { color: var(--cyan); border-color: rgba(6,182,212,0.4); }
+#chat-toggle-btn.active { color: var(--cyan); border-color: rgba(6,182,212,0.35); background: rgba(6,182,212,0.06); }
+
+#agent-chat {
+  position: fixed; bottom: 68px; right: 20px; z-index: 4000;
+  width: 380px; min-width: 300px; max-width: 600px;
+  min-height: 340px; max-height: 80vh;
+  background: #0c1018; border: 1px solid rgba(6,182,212,0.3);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(6,182,212,0.08);
+  display: flex; flex-direction: column;
+  transition: opacity 0.2s, transform 0.2s;
+  overflow: hidden;
+}
+#agent-chat.chat-hidden { opacity: 0; pointer-events: none; transform: translateY(12px) scale(0.98); }
+#agent-chat.chat-minimized #chat-body,
+#agent-chat.chat-minimized #chat-input-row,
+#agent-chat.chat-minimized #chat-typing,
+#agent-chat.chat-minimized #chat-settings-panel,
+#agent-chat.chat-minimized #chat-resize-handle { display: none !important; }
+
+#chat-drag-handle {
+  background: #0e1520; border-bottom: 1px solid rgba(6,182,212,0.2);
+  padding: 10px 12px; cursor: move; user-select: none;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+#chat-drag-handle:active { cursor: grabbing; }
+.chat-title-row { display: flex; align-items: center; gap: 8px; }
+.chat-title-icon { font-size: 14px; }
+.chat-title { font-size: 11px; font-weight: 700; color: var(--white); letter-spacing: 0.12em; }
+.chat-subtitle { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 1px; }
+.chat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.chat-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+.chat-dot.offline { background: var(--text3); }
+.chat-dot.connecting { background: var(--amber); animation: pulse-dot 1s infinite; }
+
+.chat-controls { display: flex; gap: 4px; }
+.chat-ctrl-btn {
+  font-family: var(--font); font-size: 12px; font-weight: 700;
+  background: transparent; color: var(--text3); border: 1px solid var(--border);
+  width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; padding: 0;
+}
+.chat-ctrl-btn:hover { color: var(--white); border-color: var(--border2); background: rgba(255,255,255,0.05); }
+.chat-ctrl-btn.danger:hover { color: var(--red); border-color: var(--red); }
+
+/* Settings */
+#chat-settings-panel {
+  padding: 12px; border-bottom: 1px solid var(--border);
+  background: var(--bg2); flex-shrink: 0; overflow-y: auto; max-height: 320px;
+}
+.chat-settings-title { font-size: 9px; font-weight: 700; letter-spacing: 0.15em; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+.chat-field-group { margin-bottom: 8px; }
+.chat-label { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; color: var(--text3); text-transform: uppercase; display: block; margin-bottom: 3px; }
+.chat-input {
+  width: 100%; font-family: var(--font); font-size: 10px; color: var(--text);
+  background: var(--bg3); border: 1px solid var(--border2); padding: 5px 8px;
+  outline: none; transition: border-color 0.15s;
+}
+.chat-input:focus { border-color: var(--cyan); }
+.chat-action-btn {
+  font-family: var(--font); font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 5px 12px; cursor: pointer;
+  background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.4);
+  transition: all 0.15s; flex: 1;
+}
+.chat-action-btn:hover { background: rgba(6,182,212,0.25); box-shadow: 0 0 10px rgba(6,182,212,0.2); }
+.chat-action-btn.secondary { background: transparent; color: var(--text2); border-color: var(--border2); }
+.chat-action-btn.secondary:hover { border-color: var(--text); color: var(--white); }
+
+/* Messages */
+#chat-body {
+  flex: 1; overflow-y: auto; padding: 10px; min-height: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+#chat-messages { display: flex; flex-direction: column; gap: 8px; }
+.chat-msg { max-width: 90%; animation: fadeInUp 0.2s ease; }
+.chat-msg.user { align-self: flex-end; }
+.chat-msg.assistant { align-self: flex-start; }
+.chat-msg.system { align-self: center; max-width: 100%; }
+
+.chat-bubble {
+  padding: 8px 10px; font-size: 11px; line-height: 1.5;
+  word-break: break-word; white-space: pre-wrap;
+}
+.chat-msg.user .chat-bubble {
+  background: rgba(6,182,212,0.12); color: var(--white);
+  border: 1px solid rgba(6,182,212,0.25); border-radius: 2px 0 2px 2px;
+}
+.chat-msg.assistant .chat-bubble {
+  background: rgba(255,255,255,0.04); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 0 2px 2px 2px;
+}
+.chat-msg.system .chat-bubble {
+  background: transparent; color: var(--text3); font-size: 9px;
+  text-align: center; border: none; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.chat-msg.error .chat-bubble {
+  background: rgba(239,68,68,0.08); color: var(--red); border-color: rgba(239,68,68,0.25);
+}
+.chat-meta { font-size: 8px; color: var(--text3); margin-top: 3px; }
+.chat-msg.user .chat-meta { text-align: right; }
+
+/* Typing indicator */
+#chat-typing {
+  padding: 6px 12px; display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.typing-dots { display: flex; gap: 3px; }
+.typing-dots span {
+  width: 5px; height: 5px; background: var(--cyan); border-radius: 50%;
+  animation: typing-bounce 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-bounce {
+  0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Input row */
+#chat-input-row {
+  display: flex; gap: 0; padding: 8px; border-top: 1px solid var(--border);
+  background: #0e1520; flex-shrink: 0; align-items: flex-end;
+}
+.chat-textarea {
+  flex: 1; font-family: var(--font); font-size: 11px; color: var(--text);
+  background: var(--bg3); border: 1px solid var(--border2);
+  padding: 6px 8px; resize: none; outline: none; min-height: 32px; max-height: 100px;
+  transition: border-color 0.15s; line-height: 1.4;
+}
+.chat-textarea:focus { border-color: var(--cyan); }
+.chat-send-btn {
+  font-family: var(--font); font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.4);
+  border-left: none; padding: 0 12px; cursor: pointer; height: 32px; flex-shrink: 0;
+  transition: all 0.15s; text-transform: uppercase;
+}
+.chat-send-btn:hover { background: rgba(6,182,212,0.28); }
+.chat-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Resize handle */
+#chat-resize-handle {
+  position: absolute; bottom: 0; right: 0;
+  width: 14px; height: 14px; cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(6,182,212,0.4) 50%);
+}
+
+/* Welcome state */
+.chat-welcome {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 8px; opacity: 0.6; padding: 20px; text-align: center;
+}
+.chat-welcome .cw-icon { font-size: 28px; }
+.chat-welcome .cw-title { font-size: 11px; font-weight: 700; color: var(--text); letter-spacing: 0.1em; text-transform: uppercase; }
+.chat-welcome .cw-sub { font-size: 10px; color: var(--text3); line-height: 1.5; }
+
+/* WEF BAR CHART */
+.wef-bar-row {
+  display: flex; align-items: center; gap: 6px; padding: 2px 0;
+  cursor: pointer; transition: background 0.12s;
+}
+.wef-bar-row:hover { background: rgba(255,255,255,0.02); }
+.wef-bar-label {
+  font-size: 8.5px; color: var(--text2); width: 110px; flex-shrink: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right;
+}
+.wef-bar-track {
+  display: flex; align-items: center; gap: 5px; flex: 1;
+}
+.wef-bar-fill {
+  height: 7px; border-radius: 1px; transition: width 0.6s ease;
+  min-width: 2px;
+}
+.wef-bar-val {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.04em; flex-shrink: 0;
+}
+
+/* WEF OUTLOOK */
+.wef-row { display:flex; align-items:center; gap:5px; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.wef-row:last-child { border-bottom:none; }
+.wef-num { font-size:8px; font-weight:700; color:var(--text3); min-width:10px; }
+.wef-label { font-size:9px; color:var(--text2); line-height:1.3; }
+.wef-stat { flex:1; text-align:center; padding:5px 4px; background:var(--bg3); border:1px solid var(--border); }
+.wef-stat-num { display:block; font-size:14px; font-weight:700; letter-spacing:0.02em; }
+.wef-stat-lbl { display:block; font-size:7.5px; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-top:1px; }
+
+/* State tooltip in map */
+#state-tooltip {
+  position: fixed; z-index: 500; pointer-events: none;
+  background: rgba(10,13,18,0.95); border: 1px solid var(--border2);
+  padding: 10px 14px; min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  display: none;
+}
+#state-tooltip .st-name { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 6px; }
+#state-tooltip .st-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; }
+#state-tooltip .st-row .lbl { color: var(--text2); }
+#state-tooltip .st-row .val { color: var(--white); font-weight: 600; }
+</style>
 </head>
 <body>
-  <div id="app">
-    <div id="left-panel">
-      <h2>CREON</h2>
-      <p>AI Labor Intelligence</p>
-    </div>
-    <div id="center-panel"></div>
-    <div id="right-panel"></div>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="nav-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="22" height="22" style="flex-shrink:0;">
+      <line x1="200" y1="148" x2="200" y2="268" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+      <line x1="152" y1="268" x2="248" y2="268" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+      <circle cx="200" cy="148" r="14" fill="#ffffff"/>
+      <line x1="106" y1="148" x2="294" y2="148" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+      <line x1="116" y1="148" x2="116" y2="200" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+      <line x1="284" y1="148" x2="284" y2="224" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+      <path d="M 82 200 Q 116 216 150 200" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+      <path d="M 250 224 Q 284 240 318 224" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    </svg>
+    <span>CREON</span>
+    <span style="color:var(--text3)">|</span>
+    <span style="color:var(--text2); font-size:11px; font-weight:400">AI LABOR INTELLIGENCE</span>
   </div>
+  <div class="nav-sep"></div>
+  <span class="nav-badge bls">BLS OES MAY 2026</span>
+  <span class="nav-badge occ">341 OCCUPATIONS</span>
+  <span class="nav-badge src">AI EXPOSURE RESEARCH 2026</span>
+  <div class="nav-right">
+    <a href="https://github.com/Callixen/creon" target="_blank" rel="noopener" class="nav-icon-link" title="View on GitHub">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+    </a>
+    <a href="https://x.com/Callixen" target="_blank" rel="noopener" class="nav-icon-link" title="Follow on X">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.259 5.633L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    </a>
+    <div id="live-indicator">
+      <div id="live-dot"></div>
+      <span>LIVE</span>
+    </div>
+    <span id="utc-clock">00:00:00 UTC</span>
+  </div>
+</nav>
+
+<!-- MARKETS TICKER BAR -->
+<div id="markets-bar">
+  <div id="markets-bar-label">
+    <span id="mkt-label-icon">▲</span> MARKETS
+  </div>
+  <div id="ticker-track-wrapper">
+    <div id="ticker-track">
+      <!-- populated by JS -->
+    </div>
+  </div>
+  <div id="markets-bar-controls">
+    <span id="mkt-refresh-timer" style="font-size:8px;color:rgba(255,255,255,0.35);letter-spacing:0.06em;"></span>
+    <button id="mkt-expand-btn" onclick="toggleMarketsPanel()">⊞ EXPAND</button>
+  </div>
+</div>
+
+<!-- EXPANDED MARKETS PANEL -->
+<div id="markets-panel" class="markets-panel-hidden">
+  <div id="markets-panel-inner">
+    <div class="mkt-section">
+      <div class="mkt-section-label">AI STOCKS</div>
+      <div id="mkt-stocks-grid"></div>
+    </div>
+    <div class="mkt-section">
+      <div class="mkt-section-label">CRYPTO</div>
+      <div id="mkt-crypto-grid"></div>
+    </div>
+    <div id="mkt-detail-card" style="display:none;">
+      <div class="mkt-detail-header">
+        <span id="mkt-detail-title"></span>
+        <button onclick="document.getElementById('mkt-detail-card').style.display='none'" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:13px;">✕</button>
+      </div>
+      <div id="mkt-detail-body"></div>
+    </div>
+  </div>
+  <div style="text-align:right;padding:4px 12px;font-size:8px;color:rgba(255,255,255,0.2);letter-spacing:0.08em;">
+    DATA: FINNHUB · DELAYED 15MIN
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+
+    <!-- Stats -->
+    <div class="panel-section">
+      <div class="section-header">KEY METRICS</div>
+      <div class="stat-grid">
+        <div class="stat-box blue">
+          <div class="stat-label">Total Workers</div>
+          <div class="stat-value">137.4M</div>
+          <div class="stat-sub">tracked occupations</div>
+        </div>
+        <div class="stat-box red">
+          <div class="stat-label">High Exposure</div>
+          <div class="stat-value">46.2M</div>
+          <div class="stat-sub">score ≥ 7/10 — 33.6%</div>
+        </div>
+        <div class="stat-box amber">
+          <div class="stat-label">Weighted Avg</div>
+          <div class="stat-value">4.89<span style="font-size:10px;color:var(--text2)">/10</span></div>
+          <div class="stat-sub">AI exposure score</div>
+        </div>
+        <div class="stat-box green">
+          <div class="stat-label">Wages at Risk</div>
+          <div class="stat-value" style="font-size:13px">$3.69T</div>
+          <div class="stat-sub">annual, exposure 7+</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exposure Distribution -->
+    <div class="panel-section">
+      <div class="section-header">JOBS BY EXPOSURE SCORE</div>
+      <div id="dist-bars"></div>
+    </div>
+
+    <!-- Breakdown -->
+    <div class="panel-section">
+      <div class="section-header">BREAKDOWN</div>
+      <div id="breakdown-rows"></div>
+    </div>
+
+    <!-- Exposure by Pay -->
+    <div class="panel-section">
+      <div class="section-header">EXPOSURE BY PAY</div>
+      <div id="pay-bars"></div>
+    </div>
+
+    <!-- Wages Exposed -->
+    <div class="panel-section">
+      <div class="wages-exposed">
+        <div class="we-num" id="wages-num">$3.69T</div>
+        <div class="we-label">annual wages in high-exposure jobs (7+)</div>
+        <div style="margin-top:8px; height:6px; background:linear-gradient(to right, #16a34a, #f59e0b, #dc2626); position:relative;">
+          <div style="position:absolute;top:-4px;left:66%;width:2px;height:14px;background:white;opacity:0.8;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:3px;"><span>Low</span><span>High</span></div>
+      </div>
+    </div>
+
+    <!-- Sector Heatmap -->
+    <div class="panel-section" style="flex:1">
+      <div class="section-header">SECTOR EXPOSURE HEATMAP</div>
+      <div id="sector-heatmap"></div>
+    </div>
+
+    <!-- WEF 2025 OUTLOOK -->
+    <div class="panel-section">
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>WEF JOBS OUTLOOK 2025</span>
+        <a href="https://www.weforum.org/publications/the-future-of-jobs-report-2025/" target="_blank" rel="noopener"
+           style="font-size:8px;color:var(--cyan);text-decoration:none;letter-spacing:0.08em;opacity:0.7;">SOURCE →</a>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <div style="flex:1;padding:5px 7px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);">
+          <div style="font-size:8px;font-weight:700;color:#22c55e;letter-spacing:0.1em;margin-bottom:5px;">▲ FASTEST GROWING</div>
+          <div class="wef-row"><span class="wef-num">1</span><span class="wef-label">AI & ML Specialists</span></div>
+          <div class="wef-row"><span class="wef-num">2</span><span class="wef-label">Renewable Energy Engineers</span></div>
+          <div class="wef-row"><span class="wef-num">3</span><span class="wef-label">EV & AV Specialists</span></div>
+          <div class="wef-row"><span class="wef-num">4</span><span class="wef-label">Security Mgmt Specialists</span></div>
+          <div class="wef-row"><span class="wef-num">5</span><span class="wef-label">Info Security Analysts</span></div>
+          <div class="wef-row"><span class="wef-num">6</span><span class="wef-label">Environmental Engineers</span></div>
+        </div>
+        <div style="flex:1;padding:5px 7px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);">
+          <div style="font-size:8px;font-weight:700;color:#ef4444;letter-spacing:0.1em;margin-bottom:5px;">▼ FASTEST DECLINING</div>
+          <div class="wef-row"><span class="wef-num">1</span><span class="wef-label">Cashiers & Ticket Clerks</span></div>
+          <div class="wef-row"><span class="wef-num">2</span><span class="wef-label">Admin & Exec Secretaries</span></div>
+          <div class="wef-row"><span class="wef-num">3</span><span class="wef-label">Printing Workers</span></div>
+          <div class="wef-row"><span class="wef-num">4</span><span class="wef-label">Accountants & Auditors</span></div>
+          <div class="wef-row"><span class="wef-num">5</span><span class="wef-label">Data Entry Clerks</span></div>
+          <div class="wef-row"><span class="wef-num">6</span><span class="wef-label">Bank Tellers</span></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <div class="wef-stat"><span class="wef-stat-num" style="color:#22c55e;">170M</span><span class="wef-stat-lbl">new roles</span></div>
+        <div class="wef-stat"><span class="wef-stat-num" style="color:#ef4444;">92M</span><span class="wef-stat-lbl">displaced</span></div>
+        <div class="wef-stat"><span class="wef-stat-num" style="color:var(--cyan);">78M</span><span class="wef-stat-lbl">net gain</span></div>
+      </div>
+      <div style="font-size:8px;color:var(--text3);margin-top:6px;line-height:1.5;">
+        Primary drivers of decline: broadening digital access, AI &amp; information processing, robots &amp; autonomous systems.
+      </div>
+    </div>
+
+    <!-- WEF FIG 2.4: JOB SHIFTS 2025–2030 -->
+    <div class="panel-section">
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>JOB SHIFTS 2025–2030</span>
+        <span style="font-size:8px;color:var(--text3);letter-spacing:0.06em;">MILLIONS · WEF 2025</span>
+      </div>
+      <div id="wef-bar-chart"></div>
+    </div>
+
+  </div>
+
+  <!-- CENTER PANEL -->
+  <div id="center-panel">
+
+    <!-- View Tabs -->
+    <div id="view-tabs">
+      <button class="view-tab active" data-view="treemap">TREEMAP</button>
+      <button class="view-tab" data-view="map">US MAP</button>
+      <button class="view-tab" data-view="scatter">SCATTER PLOT</button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:9px;color:var(--text3);">
+        <span>SIZE = EMPLOYMENT</span>
+        <span>COLOR = AI EXPOSURE</span>
+      </div>
+    </div>
+
+    <!-- Viz Area -->
+    <div id="viz-area">
+
+      <!-- Treemap View -->
+      <div class="viz-view active" id="view-treemap">
+        <svg id="treemap-svg"></svg>
+      </div>
+
+      <!-- Map View -->
+      <div class="viz-view" id="view-map" style="position:relative;">
+        <svg id="map-svg"></svg>
+        <div id="map-legend">
+          <div class="leg-title">AI EXPOSURE INDEX</div>
+          <div class="leg-bar"></div>
+          <div class="leg-labels"><span>LOW (4.2)</span><span>HIGH (8.1)</span></div>
+        </div>
+      </div>
+
+      <!-- Scatter View -->
+      <div class="viz-view" id="view-scatter">
+        <svg id="scatter-svg"></svg>
+      </div>
+
+    </div>
+
+    <!-- Filter Bar -->
+    <div id="filter-bar">
+      <span class="fb-label">FILTER:</span>
+      <button class="filter-pill active" data-filter="all">ALL</button>
+      <button class="filter-pill" data-filter="low">LOW 0–3</button>
+      <button class="filter-pill" data-filter="med">MEDIUM 4–6</button>
+      <button class="filter-pill" data-filter="high">HIGH 7–10</button>
+      <div class="filter-sep"></div>
+      <span class="fb-label">SECTOR:</span>
+      <select id="sector-select">
+        <option value="all">ALL SECTORS</option>
+      </select>
+      <div style="margin-left:auto; font-size:9px; color:var(--text3);">
+        SOURCE: <a href="https://www.bls.gov/oes/" style="color:var(--blue);text-decoration:none;">BLS.GOV/OES</a> × <a href="https://www.bls.gov/ooh/" style="color:var(--blue);text-decoration:none;">BLS OOH 2026</a> · <a href="https://creon.live" style="color:var(--cyan);text-decoration:none;">CREON.XYZ</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+
+    <!-- Live News Feed — TOP POSITION -->
+    <div class="panel-section" style="border-bottom:2px solid var(--border2);">
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>LIVE ECON &amp; TECH FEED</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="news-refresh-timer" style="font-size:8px;color:var(--text3);letter-spacing:0.08em;"></span>
+          <span id="news-live-dot" style="font-size:9px;color:var(--green);letter-spacing:0.1em;font-weight:700">● LIVE</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;" id="news-country-filters">
+        <button class="nf-pill active" data-country="all">ALL</button>
+        <button class="nf-pill" data-country="us">🇺🇸 US</button>
+        <button class="nf-pill" data-country="gb">🇬🇧 UK</button>
+        <button class="nf-pill" data-country="ca">🇨🇦 CA</button>
+        <button class="nf-pill" data-country="cn">🇨🇳 CN</button>
+        <button class="nf-pill" data-country="tw">🇹🇼 TW</button>
+      </div>
+      <div id="live-news-feed" style="overflow-y:auto;max-height:340px;"></div>
+      <div id="news-error" style="display:none;font-size:10px;color:var(--text3);padding:10px;text-align:center;"></div>
+    </div>
+
+    <!-- FEAR INDEX -->
+    <div class="panel-section" id="fear-section">
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>AI JOB FEAR INDEX</span>
+        <span id="fear-live-badge" style="font-size:8px;color:var(--red);letter-spacing:0.12em;font-weight:700;animation:pulse-dot 2s infinite;">▲ ELEVATED</span>
+      </div>
+
+      <!-- Gauge -->
+      <div style="text-align:center;padding:6px 0 4px;">
+        <svg id="fear-gauge" width="200" height="110" viewBox="0 0 200 110" style="overflow:visible;display:block;margin:0 auto;"></svg>
+        <div style="margin-top:2px;">
+          <span id="fear-score-num" style="font-size:32px;font-weight:700;color:#ef4444;line-height:1;font-family:var(--font);">6.4</span>
+          <span style="font-size:13px;color:var(--text3);font-family:var(--font);">/10</span>
+        </div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.12em;margin-top:2px;">COMPOSITE FEAR SCORE</div>
+      </div>
+
+      <!-- Fear level bar -->
+      <div style="padding:6px 0 10px;">
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;">
+          <span>CALM</span><span>WORRIED</span><span>PANIC</span>
+        </div>
+        <div style="height:6px;background:linear-gradient(to right,#16a34a,#facc15,#ef4444);border-radius:0;position:relative;">
+          <div id="fear-needle" style="position:absolute;top:-5px;width:3px;height:16px;background:#fff;transform:translateX(-50%);transition:left 1.5s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 6px rgba(255,255,255,0.6);"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--text3);margin-top:3px;">
+          <span>0</span><span>5</span><span>10</span>
+        </div>
+      </div>
+
+      <!-- Survey breakdown -->
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">SURVEY DATA</div>
+      <div id="fear-surveys"></div>
+
+      <!-- Trend mini-chart -->
+      <div style="margin-top:10px;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:5px;">FEAR TREND 2021–2025</div>
+      <svg id="fear-trend" width="100%" height="54" style="display:block;overflow:visible;"></svg>
+
+      <!-- Key fear facts -->
+      <div style="margin-top:10px;" id="fear-facts"></div>
+    </div>
+
+    <!-- Top At-Risk -->
+    <div class="panel-section">
+      <div class="section-header">TOP AT-RISK OCCUPATIONS</div>
+      <table class="risk-table" id="risk-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>OCCUPATION</th>
+            <th>EXP</th>
+            <th>EMP</th>
+          </tr>
+        </thead>
+        <tbody id="risk-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Safest Jobs -->
+    <div class="panel-section">
+      <div class="section-header">MOST AI-RESILIENT JOBS</div>
+      <div id="safe-list"></div>
+    </div>
+
+    <!-- Research Signals -->
+    <div class="panel-section">
+      <div class="section-header">RESEARCH SIGNALS</div>
+      <div id="news-feed"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- CREON CHAT TOGGLE BUTTON -->
+<button id="chat-toggle-btn" onclick="toggleChat()" title="Toggle Agent Chat">
+  CREON CHAT
+</button>
+
+<!-- DRAGGABLE CREON CHAT WINDOW -->
+<div id="agent-chat">
+  <div id="chat-drag-handle">
+    <div class="chat-title-row">
+      <div class="chat-title-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="18" height="18">
+        <line x1="200" y1="148" x2="200" y2="268" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+        <line x1="152" y1="268" x2="248" y2="268" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+        <circle cx="200" cy="148" r="14" fill="#ffffff"/>
+        <line x1="106" y1="148" x2="294" y2="148" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+        <line x1="116" y1="148" x2="116" y2="200" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+        <line x1="284" y1="148" x2="284" y2="224" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+        <path d="M 82 200 Q 116 216 150 200" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+        <path d="M 250 224 Q 284 240 318 224" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+      </svg></div>
+      <div>
+        <div class="chat-title">CREON AGENT</div>
+        <div class="chat-subtitle" id="chat-status-label">NOT CONNECTED</div>
+      </div>
+      <div id="chat-status-dot" class="chat-dot offline"></div>
+    </div>
+    <div class="chat-controls">
+      <button class="chat-ctrl-btn" onclick="toggleChatSettings()" title="Settings">⚙</button>
+      <button class="chat-ctrl-btn" onclick="toggleChatMinimize()" id="chat-minimize-btn" title="Minimize">—</button>
+      <button class="chat-ctrl-btn danger" onclick="closeChat()" title="Close">✕</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div id="chat-settings-panel" style="display:none;">
+    <div class="chat-settings-title">GATEWAY CONFIG</div>
+    <div class="chat-field-group">
+      <label class="chat-label">GATEWAY URL</label>
+      <input class="chat-input" id="cfg-gateway-url" type="text" placeholder="http://your-server:18789" spellcheck="false">
+    </div>
+    <div class="chat-field-group">
+      <label class="chat-label">AUTH TOKEN</label>
+      <input class="chat-input" id="cfg-token" type="password" placeholder="Your gateway token">
+    </div>
+    <div class="chat-field-group">
+      <label class="chat-label">AGENT ID</label>
+      <input class="chat-input" id="cfg-agent-id" type="text" placeholder="main" value="main" spellcheck="false">
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button class="chat-action-btn" onclick="saveSettings()">SAVE</button>
+      <button class="chat-action-btn secondary" onclick="testConnection()">TEST CONNECTION</button>
+    </div>
+    <div id="cfg-test-result" style="margin-top:6px;font-size:9px;display:none;"></div>
+    <div style="margin-top:10px;padding:8px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);font-size:9px;color:var(--text2);line-height:1.5;">
+      <span style="color:var(--cyan);font-weight:700;">HOW TO INTEGRATE YOUR AGENT:</span><br>
+      1. Run OpenClaw Gateway on any machine<br>
+      2. Enable chat completions in config:<br>
+      <code style="color:var(--amber);font-size:8px;">gateway.http.endpoints.chatCompletions.enabled: true</code><br>
+      3. Enter your gateway URL + token above<br>
+      4. The chat uses OpenAI-compatible API:<br>
+      <code style="color:var(--amber);font-size:8px;">POST /v1/chat/completions</code>
+    </div>
+  </div>
+
+  <!-- CHAT BODY -->
+  <div id="chat-body">
+    <div id="chat-messages"></div>
+  </div>
+
+  <!-- CHAT TYPING INDICATOR -->
+  <div id="chat-typing" style="display:none;">
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+    <span style="font-size:9px;color:var(--text3);">Agent responding…</span>
+  </div>
+
+  <!-- CHAT INPUT -->
+  <div id="chat-input-row">
+    <textarea id="chat-input" class="chat-textarea" placeholder="Ask the agent anything…" rows="1"></textarea>
+    <button class="chat-send-btn" id="chat-send" onclick="sendMessage()">SEND</button>
+  </div>
+
+  <!-- RESIZE HANDLE -->
+  <div id="chat-resize-handle" title="Drag to resize"></div>
+</div>
+
+<!-- Tooltips -->
+<div id="tooltip">
+  <div class="tt-title" id="tt-title"></div>
+  <span class="tt-score" id="tt-score"></span>
+  <div class="tt-row"><span class="lbl">Median Pay</span><span class="val" id="tt-pay"></span></div>
+  <div class="tt-row"><span class="lbl">Employment (2024)</span><span class="val" id="tt-emp"></span></div>
+  <div class="tt-row"><span class="lbl">BLS Outlook</span><span class="val" id="tt-out"></span></div>
+  <div class="tt-row"><span class="lbl">Education</span><span class="val" id="tt-edu"></span></div>
+  <div class="tt-divider"></div>
+  <div class="tt-rationale" id="tt-rat"></div>
+  <a id="tt-bls-link" href="#" target="_blank" rel="noopener" class="tt-bls-link">
+    VIEW ON BLS.GOV →
+  </a>
+</div>
+
+<div id="state-tooltip">
+  <div class="st-name" id="st-name"></div>
+  <div class="st-row"><span class="lbl">AI Exposure Index</span><span class="val" id="st-score"></span></div>
+  <div class="st-row"><span class="lbl">Risk Level</span><span class="val" id="st-risk"></span></div>
+  <div class="st-row"><span class="lbl">Top At-Risk Occ.</span><span class="val" id="st-top"></span></div>
+  <div style="margin-top:6px;font-size:8px;color:rgba(6,182,212,0.7);text-align:center;letter-spacing:0.1em;">CLICK TO VIEW STATE DATA ON BLS.GOV →</div>
+</div>
+
+  <script src="app.js"></script>
 </body>
 </html>
