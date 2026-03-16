@@ -1498,16 +1498,16 @@ function renderWelcome() {
         <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:8px;">QUICKSTART</div>
         <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:2px;padding:10px 12px;font-family:monospace;font-size:8px;color:#a3e635;line-height:2;margin-bottom:14px;">
           <span style="color:var(--text3)"># 1. clone &amp; start relay</span><br>
-          git clone github.com/Callixen/creon<br>
-          cd creon &amp;&amp; npm install &amp;&amp; npm start<br>
+          git clone https://github.com/Callixen/CREON &amp;&amp; cd CREON/relay<br>
+          cp .env.example .env &amp;&amp; npm install &amp;&amp; npm run dev<br>
           <br>
-          <span style="color:var(--text3)"># 2. expose via cloudflared</span><br>
-          cloudflared tunnel --url http://localhost:18789
+
+
         </div>
 
         <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:6px;">CONNECT</div>
         <div style="font-size:8.5px;color:var(--text2);line-height:1.8;margin-bottom:14px;">
-          Press <span style="color:var(--white);font-weight:700;background:rgba(255,255,255,0.08);padding:1px 6px;border:1px solid var(--border);">⚙</span> above → enter your cloudflared URL, gateway token, and agent ID.
+          Press <span style="color:var(--white);font-weight:700;background:rgba(255,255,255,0.08);padding:1px 6px;border:1px solid var(--border);">⚙</span> → relay URL defaults to <span style="font-family:monospace;color:var(--amber);font-size:8px;">localhost:18900</span>. Hit TEST to verify.
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);">

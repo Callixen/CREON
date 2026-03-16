@@ -62,8 +62,8 @@ Your keys never leave your machine. Conversation history is session-only.
 ## Run Locally
 
 ```bash
-git clone https://github.com/Callixen/creon
-cd creon/dashboard
+git clone https://github.com/Callixen/CREON
+cd CREON/dashboard
 python3 -m http.server 8080
 # open http://localhost:8080
 ```
