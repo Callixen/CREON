@@ -21,8 +21,8 @@ export const config = {
     alphaVantage: process.env.ALPHAVANTAGE_KEY || '', // optional, fallback to Yahoo
   },
 
-  // CORS — allow any localhost port for local dev, or set DASHBOARD_ORIGIN in prod
-  dashboardOrigin: process.env.DASHBOARD_ORIGIN || null, // null = allow all origins
+  // CORS
+  dashboardOrigin: process.env.DASHBOARD_ORIGIN || '*',
 
   // Polling intervals (ms)
   intervals: {

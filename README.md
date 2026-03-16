@@ -10,31 +10,21 @@ Built by **[Callixen](https://x.com/Callixen)** — an autonomous AI agent opera
 
 ---
 
-## Quickstart
+## Connect Your Agent
 
-**Recommended — via OpenClaw agent:**
-
-Text your agent: `install & clone https://github.com/Callixen/CREON`
-
-**Manual local setup:**
+Plug in your own OpenClaw relay in three steps:
 
 ```bash
-# terminal 1 — relay server
-git clone https://github.com/Callixen/CREON.git
-cd CREON/relay
-cp .env.example .env
-# edit .env — add your OPENCLAW_GATEWAY_URL and OPENCLAW_GATEWAY_TOKEN
-npm install
-npm run dev
+# 1. Start your OpenClaw gateway
+openclaw gateway --port 18789
 
-# terminal 2 — dashboard
-cd ../dashboard
-python3 -m http.server 8080
+# 2. Expose it publicly
+cloudflared tunnel --url http://localhost:18789
+
+# 3. Open CREON → ⚙ → paste your cloudflared URL + gateway token + agent ID
 ```
 
-Open `http://localhost:8080` in your browser. Click **⚙** in the agent chat panel — the relay URL defaults to `http://localhost:18900`. Hit **TEST CONNECTION** to verify.
-
-Your gateway credentials stay in `.env` on your machine — the browser never touches them directly.
+Your keys never leave your machine. Conversation history is session-only.
 
 ---
 
@@ -89,22 +79,6 @@ No build step. No framework. No dependencies beyond D3.js (loaded via CDN).
 - BLS OES public API
 - Newsdata.io for live research signals
 - OpenClaw gateway for agent chat
-
----
-
-## Security
-
-The relay server implements several hardened controls:
-
-| Concern | Implementation |
-|---|---|
-| **SSRF** | `validateGatewayUrl()` rejects RFC 1918 private IPs, loopback, link-local, CGNAT (100.64/10), IPv6 ULA/link-local, and cloud metadata endpoints (`169.254.169.254`, etc.) |
-| **Rate limiting** | Sliding window — 20 requests/min per `clientId`. Breaches return `429 Too Many Requests` with a `Retry-After` header. |
-| **Input sanitization** | All user-supplied message content is trimmed and length-capped before reaching the agent proxy. |
-| **URL validation** | Only `http:` and `https:` schemes accepted on user-supplied gateway URLs. |
-| **No eval/exec** | No dynamic code execution anywhere in the relay. |
-
-See [`relay/src/security.js`](relay/src/security.js) for the full implementation.
 
 ---
 

@@ -1359,27 +1359,30 @@ let chatOpen = true; // open by default
 let chatMinimized = false;
 let chatHistory = []; // [{role, content}]
 let chatConnected = false;
-let chatSettings = { url: '', token: '', agentId: 'main' };
+// relayUrl: the local CREON relay (default localhost:18900)
+// clientId: stable browser session ID for relay session tracking
+let chatSettings = { relayUrl: 'http://localhost:18900', clientId: null };
 let isDragging = false, dragOffX = 0, dragOffY = 0;
 let isResizing = false, resizeStartW = 0, resizeStartH = 0, resizeStartX = 0, resizeStartY = 0;
+
+function getChatClientId() {
+  let id = localStorage.getItem('creon-client-id');
+  if (!id) { id = 'creon-' + Math.random().toString(36).slice(2, 10); localStorage.setItem('creon-client-id', id); }
+  return id;
+}
 
 function loadChatSettings() {
   try {
     const saved = localStorage.getItem('creon-chat-settings');
     if (saved) chatSettings = { ...chatSettings, ...JSON.parse(saved) };
   } catch(e) {}
-  const urlInput = document.getElementById('cfg-gateway-url');
-  const tokenInput = document.getElementById('cfg-token');
-  const agentInput = document.getElementById('cfg-agent-id');
-  if (urlInput) urlInput.value = chatSettings.url || '';
-  if (tokenInput) tokenInput.value = chatSettings.token || '';
-  if (agentInput) agentInput.value = chatSettings.agentId || 'main';
+  chatSettings.clientId = getChatClientId();
+  const urlInput = document.getElementById('cfg-relay-url');
+  if (urlInput) urlInput.value = chatSettings.relayUrl || 'http://localhost:18900';
 }
 
 function saveSettings() {
-  chatSettings.url = document.getElementById('cfg-gateway-url').value.trim().replace(/\/$/, '');
-  chatSettings.token = document.getElementById('cfg-token').value.trim();
-  chatSettings.agentId = document.getElementById('cfg-agent-id').value.trim() || 'main';
+  chatSettings.relayUrl = (document.getElementById('cfg-relay-url')?.value || '').trim().replace(/\/$/, '') || 'http://localhost:18900';
   localStorage.setItem('creon-chat-settings', JSON.stringify(chatSettings));
   showCfgResult('✓ Settings saved', 'var(--green)');
   setTimeout(() => { document.getElementById('chat-settings-panel').style.display = 'none'; }, 800);
@@ -1393,31 +1396,19 @@ function showCfgResult(msg, color) {
 }
 
 async function testConnection() {
-  if (!chatSettings.url) {
-    showCfgResult('⚠ Enter gateway URL first', 'var(--amber)'); return;
-  }
+  const relay = chatSettings.relayUrl || 'http://localhost:18900';
   showCfgResult('Testing connection…', 'var(--text3)');
   setChatDot('connecting'); setChatStatusLabel('TESTING…');
   try {
-    const res = await fetch(`${chatSettings.url}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${chatSettings.token}`,
-      },
-      body: JSON.stringify({
-        model: `openclaw:${chatSettings.agentId}`,
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 20,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (res.ok || res.status === 200) {
-      showCfgResult('✓ Connected! Agent is reachable', 'var(--green)');
+    const res = await fetch(`${relay}/api/status`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json();
+      const agentOk = data.agent?.configured;
+      showCfgResult(agentOk ? '✓ Relay online — agent configured' : '✓ Relay online — agent not configured (set env vars)', agentOk ? 'var(--green)' : 'var(--amber)');
       setChatDot('online'); setChatStatusLabel('CONNECTED');
       chatConnected = true;
     } else {
-      showCfgResult(`✗ HTTP ${res.status} — check token/URL`, 'var(--red)');
+      showCfgResult(`✗ HTTP ${res.status} — relay returned an error`, 'var(--red)');
       setChatDot('offline'); setChatStatusLabel('AUTH FAILED');
     }
   } catch(err) {
@@ -1481,37 +1472,39 @@ function renderWelcome() {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
           <div style="padding:8px;background:var(--bg3);border:1px solid var(--border);">
-            <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:6px;">WHAT IS THIS</div>
+            <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:6px;">HOW IT WORKS</div>
             <div style="font-size:8.5px;color:var(--text2);line-height:1.7;">
-              Live AI agent chat via your own OpenClaw relay. Local-first — you own the stack, keys never leave your machine.
+              Run the CREON relay locally. It connects to your OpenClaw agent and proxies messages — your keys never leave your machine.
             </div>
           </div>
           <div style="padding:8px;background:var(--bg3);border:1px solid var(--border);">
-            <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:6px;">COMPATIBLE WITH</div>
+            <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:6px;">WHAT YOU CAN ASK</div>
             <div style="font-size:8.5px;color:var(--text2);line-height:1.7;">
-              Any OpenAI-compatible frontend via<br>
-              <span style="font-family:monospace;color:var(--amber);font-size:8px;">POST /v1/chat/completions</span>
+              Job displacement risk, wage trends, sector breakdowns, WEF forecasts, market signals — all backed by live data.
             </div>
           </div>
         </div>
 
         <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:8px;">QUICKSTART</div>
         <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:2px;padding:10px 12px;font-family:monospace;font-size:8px;color:#a3e635;line-height:2;margin-bottom:14px;">
-          <span style="color:var(--text3)"># 1. clone &amp; start relay</span><br>
-          git clone github.com/Callixen/creon<br>
-          cd creon &amp;&amp; npm install &amp;&amp; npm start<br>
+          <span style="color:var(--text3)"># terminal 1 — relay server</span><br>
+          git clone github.com/Callixen/creon &amp;&amp; cd creon/relay<br>
+          cp .env.example .env<br>
+          <span style="color:var(--text3)"># edit .env — add your OpenClaw gateway URL &amp; token</span><br>
+          npm install &amp;&amp; npm run dev<br>
           <br>
-          <span style="color:var(--text3)"># 2. expose via cloudflared</span><br>
-          cloudflared tunnel --url http://localhost:18789
+          <span style="color:var(--text3)"># terminal 2 — dashboard</span><br>
+          cd ../dashboard<br>
+          python3 -m http.server 8080
         </div>
 
         <div style="font-size:8px;font-weight:700;color:var(--cyan);letter-spacing:0.1em;margin-bottom:6px;">CONNECT</div>
         <div style="font-size:8.5px;color:var(--text2);line-height:1.8;margin-bottom:14px;">
-          Press <span style="color:var(--white);font-weight:700;background:rgba(255,255,255,0.08);padding:1px 6px;border:1px solid var(--border);">⚙</span> above → enter your cloudflared URL, gateway token, and agent ID.
+          Open <span style="font-family:monospace;color:var(--amber);font-size:8px;">http://localhost:8080</span> → press <span style="color:var(--white);font-weight:700;background:rgba(255,255,255,0.08);padding:1px 6px;border:1px solid var(--border);">⚙</span> → relay URL defaults to <span style="font-family:monospace;color:var(--amber);font-size:8px;">localhost:18900</span>.
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
-          <span style="font-size:7.5px;color:var(--text3);letter-spacing:0.07em;">⚠ never expose your gateway without auth</span>
+          <span style="font-size:7.5px;color:var(--text3);letter-spacing:0.07em;">relay runs locally — never exposed unless you choose to</span>
           <a href="https://github.com/Callixen/creon" target="_blank" rel="noopener" style="font-size:8px;color:var(--cyan);text-decoration:none;letter-spacing:0.08em;">github →</a>
         </div>
 
@@ -1553,52 +1546,43 @@ async function sendMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
-  if (!chatSettings.url) {
-    toggleChatSettings();
-    showCfgResult('⚠ Configure gateway URL first', 'var(--amber)');
-    return;
-  }
+
+  const relay = chatSettings.relayUrl || 'http://localhost:18900';
+  const clientId = chatSettings.clientId || getChatClientId();
 
   input.value = '';
   input.style.height = 'auto';
   addMessage('user', text);
 
-  // Show typing
+  // Show typing indicator
   document.getElementById('chat-typing').style.display = 'flex';
   document.getElementById('chat-send').disabled = true;
   input.disabled = true;
   setChatDot('connecting');
 
-  const messages = chatHistory
-    .filter(m => m.role !== 'system')
-    .slice(-20)
-    .map(m => ({ role: m.role, content: m.content }));
-
   try {
-    const res = await fetch(`${chatSettings.url}/v1/chat/completions`, {
+    // POST to local relay — relay handles auth and OpenClaw proxying
+    const res = await fetch(`${relay}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${chatSettings.token}`,
-        'X-OpenClaw-Agent-Id': chatSettings.agentId,
-      },
-      body: JSON.stringify({
-        model: `openclaw:${chatSettings.agentId}`,
-        messages,
-        stream: false,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, clientId }),
       signal: AbortSignal.timeout(60000),
     });
 
     document.getElementById('chat-typing').style.display = 'none';
 
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(`Rate limited — retry in ${data.retryAfter || '?'}s`);
+    }
+
     if (!res.ok) {
       const errTxt = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status}${errTxt ? ': ' + errTxt.substring(0,80) : ''}`);
+      throw new Error(`HTTP ${res.status}${errTxt ? ': ' + errTxt.substring(0, 80) : ''}`);
     }
 
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || data.choices?.[0]?.text || JSON.stringify(data);
+    const reply = data.reply || data.choices?.[0]?.message?.content || JSON.stringify(data);
 
     addMessage('assistant', reply);
     setChatDot('online'); setChatStatusLabel('CONNECTED');

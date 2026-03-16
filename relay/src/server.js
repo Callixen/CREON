@@ -7,15 +7,6 @@
  *
  * Built by Callixen — https://x.com/Callixen
  * https://creon.live
- *
- * Security controls (see relay/src/security.js):
- *   - SSRF protection: validateGatewayUrl() rejects private IPs (RFC 1918,
- *     loopback, link-local, CGNAT, IPv6 ULA) and cloud metadata endpoints
- *   - Rate limiting: rateLimitCheck() — 20 req/min per clientId, sliding window,
- *     returns 429 with Retry-After header on breach
- *   - Input sanitization: sanitizeMessage() — trims and enforces max length
- *     on all user-supplied message content before forwarding to agent proxy
- *   - URL validation: http/https scheme enforcement on all user-supplied URLs
  */
 
 import express from 'express';
@@ -30,7 +21,6 @@ import { pollMarkets, getMarketsCache, checkForAlerts } from './sources/markets.
 import { pollBLS, getBLSCache, fetchOccupationDetail } from './sources/bls.js';
 import { pollNews, getNewsCache, dedupe } from './sources/news.js';
 import { sendMessage, clearSession, getSessionCount, SYSTEM_CONTEXT } from './agent/proxy.js';
-import { validateGatewayUrl, rateLimitCheck, sanitizeMessage } from './security.js';
 
 // ---- EXPRESS SETUP ----
 
@@ -38,12 +28,7 @@ const app = express();
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
-// Allow all origins by default for local dev; lock down with DASHBOARD_ORIGIN in production
-app.use(cors({
-  origin: config.dashboardOrigin || true,
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(cors({ origin: config.dashboardOrigin }));
 app.use(express.json({ limit: '64kb' }));
 
 // ---- WEBSOCKET ----
@@ -124,36 +109,18 @@ app.get('/api/news', (req, res) => {
 
 // Agent chat
 app.post('/api/chat', async (req, res) => {
-  const { message, clientId, gatewayUrl } = req.body;
-
-  if (!clientId || typeof clientId !== 'string') {
-    return res.status(400).json({ error: 'clientId is required' });
-  }
-
-  // Rate limit per client
-  const rl = rateLimitCheck(clientId);
-  if (rl.limited) {
-    return res.status(429).json({ error: 'Too many requests', retryAfter: rl.retryAfter });
-  }
+  const { message, clientId } = req.body;
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'message is required' });
   }
 
-  // If client supplies a custom gateway URL, validate it against SSRF
-  if (gatewayUrl) {
-    const urlCheck = validateGatewayUrl(gatewayUrl);
-    if (!urlCheck.ok) {
-      return res.status(400).json({ error: `Invalid gateway URL: ${urlCheck.reason}` });
-    }
+  if (!clientId || typeof clientId !== 'string') {
+    return res.status(400).json({ error: 'clientId is required' });
   }
 
-  const agentConfig = gatewayUrl
-    ? { ...config.agent, gatewayUrl }
-    : config.agent;
-
   try {
-    const result = await sendMessage(clientId, sanitizeMessage(message), agentConfig);
+    const result = await sendMessage(clientId, message, config.agent);
     res.json(result);
   } catch (err) {
     const status = err.message.includes('not configured') ? 503 : 502;
