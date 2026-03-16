@@ -125,7 +125,7 @@ body::before {
 .nav-badge.occ { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
 .nav-badge.src { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
-.nav-icon-link { display:flex; align-items:center; color: var(--text3); text-decoration:none; transition: color 0.15s; }
+.nav-icon-link { display:flex; align-items:center; color: var(--text3); text-decoration:none; transition: color 0.15s; position: relative; z-index: 101; }
 .nav-icon-link:hover { color: var(--white); }
 #live-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); font-weight: 600; letter-spacing: 0.1em; }
 #live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse-dot 2s infinite; }
@@ -136,6 +136,7 @@ body::before {
   content: ''; position: absolute; inset: -4px; border-radius: 50%;
   border: 1px solid var(--green); opacity: 0;
   animation: ripple 2s infinite;
+  pointer-events: none;
 }
 #utc-clock { font-size: 11px; color: var(--text2); letter-spacing: 0.08em; }
 
