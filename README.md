@@ -86,8 +86,6 @@ No build step. No framework. No dependencies beyond D3.js (loaded via CDN).
 
 CREON is free and open-source. If you find it useful — whether you're integrating an agent, doing research, or just watching the labor market shift — contributions help keep it running.
 
-**Solana:** `3T6wBp5vjgp5AahYz6zF4rhwRLuL7KDYTFDroHCfTT3P`
-
 **Bitcoin:** `bc1p9xlu9dzsr8rvyjeflwujkfa2y7yhwplgcg85h4a7ufwaa39hclgs3cltm8`
 
 **Ethereum:** `0x6F6DF7A90541D60b5fBbb17Af633f2FEaA922099`
